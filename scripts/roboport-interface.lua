@@ -1,13 +1,8 @@
 -------------------------------------------------------------------------------
 --[[roboport-interface]] -------------------------------------------------------------------------------
 local Event = require('__stdlib__/stdlib/event/event')
-local Position = require('__stdlib__/stdlib/area/position')
-local Area = require('__stdlib__/stdlib/area/area')
--- local Unique_Array = require('__stdlib__/stdlib/utils/classes/unique_array')
-
 local table = require('__stdlib__/stdlib/utils/table')
-local abs, max, min, floor = math.abs, math.max, math.min, math.floor
-
+local abs = math.abs
 --[[--
 raw-wood-cutting, scan for trees, if value is negative only scan for trees if wood in network is less then that amount
 tile-item, scan for tiles, only checks first signal, if negative, will not place tiles unless that many are in network.
@@ -161,12 +156,13 @@ end
 --     end
 -- end
 
+--- @param interface LuaEntity
 local function run_interface(interface)
-    local behaviour = interface.get_control_behavior()
+    local behaviour = interface.get_control_behavior() ---@type LuaConstantCombinatorControlBehavior
     if not (behaviour and behaviour.enabled) then return end
 
     local parameters = get_parameters(behaviour.parameters)
-    if table.size(parameters) == 0 then return end
+    if table_size(parameters) == 0 then return end
 
     local port = interface.surface.find_entity('roboport-interface-main', interface.position)
     if not port then return end
@@ -206,9 +202,8 @@ local function run_interface(interface)
                 if param.action == 'deconstruct_entity' then
                     if limit <= 0 or cells_to_search <= 0 then break end
                     local entities = surface.find_entities_filtered{
-                        area = Position(cell.owner.position):expand_to_area(cell.construction_radius),
-                        -- position = cell.owner.position,
-                        -- radius = cell.construction_radius,
+                        position = cell.owner.position,
+                        radius = cell.construction_radius,
                         type = param.type,
                         to_be_deconstructed = false,
                         limit = limit
@@ -219,9 +214,8 @@ local function run_interface(interface)
                 elseif param.action == 'tile_ground' then
                     if limit <= 0 then break end
                     local tiles = surface.find_tiles_filtered{
-                        area = Position(cell.owner.position):expand_to_area(cell.construction_radius),
-                        -- position = cell.owner.position,
-                        -- radius = cell.construction_radius,
+                        position = cell.owner.position,
+                        radius = cell.construction_radius,
                         -- has_hidden_tile = false,
                         collision_mask = {'ground-tile'}
                         -- limit = limit,
@@ -254,6 +248,7 @@ end
 
 -- There is where all the magic happens
 -- Check signals, then execute the actions.
+--- @param event on_sector_scanned
 local function on_sector_scanned(event)
     if event.radar.name == 'roboport-interface-scanner' then
         local entity = event.radar
