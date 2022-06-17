@@ -23,33 +23,8 @@ data:extend{
         icon = '__RoboportInterface__/graphics/icons/signals/remove-fish.png',
         icon_size = 64,
         subgroup = 'interface-signals',
-        order = '[interface-signal]-f'
+        order = '[interface-signal]-c'
     },
-    -- {
-    --     type = 'virtual-signal',
-    --     name = 'interface-signal-remove-tiles',
-    --     icon = '__RoboportInterface__/graphics/icons/signals/remove-tiles.png',
-    --     icon_size = 32,
-    --     subgroup = 'interface-signals',
-    --     order = '[interface-signal]-c'
-    -- },
-    -- {
-    --     type = 'virtual-signal',
-    --     name = 'interface-signal-landfill-the-world',
-    --     icon = '__RoboportInterface__/graphics/icons/signals/item-on-ground.png',
-    --     icon_size = 32,
-    --     subgroup = 'interface-signals',
-    --     order = '[interface-signal]-d'
-    -- },
-    -- {
-    --     type = 'virtual-signal',
-    --     name = 'interface-signal-deconstruct-finished-miners',
-    --     icon = '__RoboportInterface__/graphics/icons/signals/deconstruct-miners.png',
-    --     icon_size = 32,
-    --     subgroup = 'interface-signals',
-    --     order = '[interface-signal]-e'
-    -- },
-
 }
 
 data:extend{

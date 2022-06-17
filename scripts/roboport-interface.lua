@@ -1,127 +1,107 @@
+local Actions = require('scripts/actions')
 local Event = require('__stdlib__/stdlib/event/event')
+local Area = require('__stdlib__/stdlib/area/area') ---@diagnostic disable-line: unused-local
+local Position = require('__stdlib__/stdlib/area/position')
+
 local math = require('__stdlib__/stdlib/utils/math')
-local table = require('__stdlib__/stdlib/utils/table')
-local abs, clamp, min, max = math.abs, math.clamp, math.min, math.max
 
---- @class ri.parameter_map
-local parameter_map = {
-    ['interface-signal-item-on-ground'] = {action = 'deconstruct_entity', type = 'item-entity'},
-    ['interface-signal-chop-trees'] = {action = 'deconstruct_entity', type = 'tree', item_name = 'wood'},
-    ['interface-signal-catch-fish'] = {action = 'deconstruct_entity', type = 'fish', item_name = 'raw-fish'},
-    ['interface-signal-refill-turrets'] = {action = 'refill_turrets'},
-    ['interface-signal-smarter-charging'] = {action = 'smarter_recharge'},
-    ['interface-signal-upgrade-modules'] = {action = 'upgrade_modules'},
-    ['interface-signal-deconstruct-finished-miners'] = {action = 'deconstruct_finished_miners', type = 'mining-drill'},
-    ['interface-signal-landfill-the-world'] = {action = 'landfill_the_world'},
-    ['interface-signal-build-tiles'] = {action = 'tile_ground', item_name = 'hazard-concrete'},
-    ['interface-signal-remove-tiles'] = {action = 'remove_tiles'},
-    ['interface-signal-roboport-count'] = {action = nil},
-    ['interface-signal-enemy-range'] = {action = nil},
-    ['interface-signal-bot-utilization'] = {action = nil},
-    ['interface-signal-roboport-channel'] = {action = nil}
-}
+local abs, clamp = math.abs, math.clamp
+local for_n_of = require('scripts/for_n_of')
+local parse_parameters = require('scripts/parse_parameters')
 
---- @param parameters ConstantCombinatorParameters[]
---- @return ri.parameter_map
---- @return int
-local function get_parameter_dictionary(parameters)
-    local new_parameters = {}
-    local count = 0
-    for _, parameter in pairs(parameters) do
-        local name = parameter.signal.name
-        if name and parameter_map[name] then
-            new_parameters[name] = table.deep_copy(parameter_map[name])
-            new_parameters[name].count = parameter.count
-            if new_parameters[name].action then count = count + 1 end
-        end
-    end
-    return new_parameters, count
-end
+local CELLS_PER_TICK = 1
+local TICKS_BETWEEN_CELLS = 10
+local CHANNEL_SIGNAL = {name = 'interface-signal-roboport-channel', type = 'virtual'}
 
 --- @param interface LuaEntity
-local function run_interface(interface)
+local function build_network_table(interface)
+    local unit_number = interface.unit_number
+    if global.running_interfaces[unit_number] then return end
+
     local behaviour = interface.get_control_behavior() ---@type LuaConstantCombinatorControlBehavior
     if not (behaviour and behaviour.enabled) then return end
 
-    local parameters, action_count = get_parameter_dictionary(behaviour.parameters)
+    local parameters, settings, action_count = parse_parameters(behaviour.parameters)
     if action_count == 0 then return end
 
     local port = interface.surface.find_entity('roboport-interface-main', interface.position)
     if not port then return end
 
     local network = port.logistic_network
-    if not network then return end
+    if not (network and network.all_construction_robots > 0) then return end
 
-    local per_value = parameters['interface-signal-bot-utilization'] and parameters['interface-signal-bot-utilization'].count or 100
-    local per = clamp(abs(per_value / 100), 0, 1)
-    local available_bots = network.available_construction_robots * per
+    local network_cells = network.cells
+    local num_cells_to_search = (settings['interface-signal-roboport-count'] and settings['interface-signal-roboport-count'].count) or #network_cells
+    if num_cells_to_search <= 0 then return end
+
+    local utilization = clamp(abs(settings['interface-signal-bot-utilization'] and settings['interface-signal-bot-utilization'].count or 100 / 100),0,1)
+    local available_bots = network.available_construction_robots * utilization
     if available_bots <= 0 then return end
 
-    -- Subtract 1 from network cells to not include self
-    local cells = network.cells
-    local cells_to_search = (parameters['interface-signal-roboport-count'] and parameters['interface-signal-roboport-count'].count) or (#cells - 1)
-    if cells_to_search <= 0 then return end
+    local channel = (settings['interface-signal-roboport-channel'] and settings['interface-signal-roboport-channel'].count) or 0
+    local enemy_range_offset = (settings['interface-signal-enemy-range'] and settings['interface-signal-enemy-range'].count) or 0
 
-    local channel = (parameters['interface-signal-roboport-channel'] and parameters['interface-signal-roboport-channel'].count) or 0
-    local enemy_range = (parameters['interface-signal-enemy-range'] and parameters['interface-signal-enemy-range'].count) or 0
+    --- Holds all the network data
+    --- @class ri.network_data
+    local network_data = {
+        unit_number = unit_number,
+        interface = interface,
+        surface = interface.surface,
+        force = network.force,
+        parameters = parameters,
+        contents = network.get_contents(),
+        network = network,
+        utilization = utilization,
+        available_bots = available_bots
+    }
 
-    local force = network.force
-    local surface = interface.surface
-    local contents = network.get_contents()
+    local cell_group = {} ---@type ri.cell_data[]
+    local cell_count = 0
+    for _, cell in pairs(network_cells) do
+        if cell_count == num_cells_to_search then break end
 
-    for _, param in pairs(parameters) do
-        if not param.action then goto continue_parameters end
+        local radius = cell.construction_radius
+        if cell.mobile or radius == 0 then goto continue end
 
-        -- If the count is negative then check for contents of network
-        local limit = abs(param.count)
-        if param.item_name and param.count < 0 then
-            limit = limit - (contents[param.item_name] or 0)
-        end
-        if limit <= 0 then break end
+        local owner = cell.owner
+        if channel ~= 0 and channel ~= owner.get_merged_signal(CHANNEL_SIGNAL) then goto continue end
 
-        for _, cell in pairs(cells) do
-            if limit <= 0 or cells_to_search <= 0 or available_bots <= 0 then break end
-            local owner = cell.owner
-            local cell_radius = cell.construction_radius
-            if cell.mobile or cell_radius <= 0 then goto continue_cells end
-            if channel ~= 0 and owner.get_merged_signal({name = 'interface-signal-roboport-channel', type = 'virtual'}) ~= channel then
-                goto continue_cells
-            end
+        local position = Position(owner.position)
+        cell_count = cell_count + 1
 
-            local position = owner.position
+        --- Holds all the cell data
+        --- @class ri.cell_data
+        local cell_data = {
+            network = network_data,
+            cell = cell,
+            owner = owner,
+            position = position, ---@type MapPosition
+            area = position:expand_to_area(radius), ---@type BoundingBox
+            enemy_radius = radius + enemy_range_offset,
+            has_enemy = false
+        }
 
-            local radius = cell_radius + enemy_range
-            if radius >= 0 and surface.find_nearest_enemy{
-                position = position,
-                max_distance = radius,
-                force = force
-            }
-            then goto continue_cells end
-
-            if param.action == 'deconstruct_entity' then
-                local entities = surface.find_entities_filtered{
-                    position = position,
-                    radius = cell_radius,
-                    type = param.type,
-                    limit = max(0, min(limit, available_bots)),
-                    to_be_deconstructed = false,
-                }
-                local num_entities = #entities
-                limit = limit - num_entities
-                available_bots = available_bots - num_entities
-                cells_to_search = cells_to_search - 1
-                for _, entity in pairs(entities) do entity.order_deconstruction(force) end
-            end
-            ::continue_cells::
-        end
-        ::continue_parameters::
+        cell_group[cell_count] = cell_data
+        ::continue::
     end
+    if cell_count == 0 then return end
+
+    global.running_interfaces[unit_number] = cell_group
 end
 
 do -- Events
     --- @param event on_tick
     local function on_tick(event)
+        if event.tick % TICKS_BETWEEN_CELLS ~= 0 then return end
+        for interface_number, cell_group in pairs(global.running_interfaces) do
+            local index, _, finished = for_n_of(cell_group, global.index[interface_number], CELLS_PER_TICK, Actions.Run)
+            global.index[interface_number] = index
+            if finished then
+                global.running_interfaces[interface_number] = nil
+                global.index[interface_number] = index
 
+            end
+        end
     end
     Event.register(defines.events.on_tick, on_tick)
 
@@ -133,14 +113,14 @@ do -- Events
         if event.radar.name == 'roboport-interface-scanner' then
             local entity = event.radar
             local interface = entity.surface.find_entity('roboport-interface-cc', entity.position)
-            return interface and run_interface(interface)
+            return interface and build_network_table(interface)
         end
     end
     Event.register(defines.events.on_sector_scanned, on_sector_scanned)
 
     -- Build the interface, after built check the area around it for interface components to revive or create.
     local function build_roboport_interface(event)
-        local interface = event.created_entity or event.entity
+        local interface = event.created_entity or event.entity --- @type LuaEntity|nil
         if interface and interface.name == 'roboport-interface-main' then
             local pos, force = interface.position, interface.force
             local cc, ra = {}, {} -- Don't listen the masses.... a little gc churn later is two less type() calls now.
@@ -196,5 +176,11 @@ do -- Events
     Event.register(Event.mined_events, function(event)
         kill_or_remove_interface_parts(event, true)
     end)
+
+    local function on_init()
+        global.running_interfaces = {} ---@type {[uint]: ri.cell_data}
+        global.index = {} ---@type {[uint]: any}
+    end
+    Event.on_init(on_init)
 
 end
