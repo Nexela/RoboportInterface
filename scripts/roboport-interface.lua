@@ -11,14 +11,15 @@ local parse_parameters = require('scripts/parse_parameters')
 
 local CELLS_PER_TICK = 1
 local TICKS_BETWEEN_CELLS = 10
-local CHANNEL_SIGNAL = {name = 'interface-signal-roboport-channel', type = 'virtual'}
+local CHANNEL_SIGNAL = { name = 'interface-signal-roboport-channel', type = 'virtual' }
 
 --- @param interface LuaEntity
 local function build_network_table(interface)
-    local unit_number = interface.unit_number
+    local unit_number = interface.unit_number --[[@as uint]]
     if global.running_interfaces[unit_number] then return end
 
-    local behaviour = interface.get_control_behavior() ---@type LuaConstantCombinatorControlBehavior
+    local behaviour = interface.get_control_behavior()
+    ---@cast behaviour LuaConstantCombinatorControlBehavior
     if not (behaviour and behaviour.enabled) then return end
 
     local parameters, settings, action_count = parse_parameters(behaviour.parameters)
@@ -34,7 +35,8 @@ local function build_network_table(interface)
     local num_cells_to_search = (settings['interface-signal-roboport-count'] and settings['interface-signal-roboport-count'].count) or #network_cells
     if num_cells_to_search <= 0 then return end
 
-    local utilization = clamp(abs(settings['interface-signal-bot-utilization'] and settings['interface-signal-bot-utilization'].count or 100 / 100),0,1)
+    local bot_utilization_setting = (settings['interface-signal-bot-utilization'] and settings['interface-signal-bot-utilization'].count or 100) / 100
+    local utilization = clamp(abs(bot_utilization_setting), 0, 1) --[[@as float]]
     local available_bots = network.available_construction_robots * utilization
     if available_bots <= 0 then return end
 
@@ -72,7 +74,7 @@ local function build_network_table(interface)
         --- Holds all the cell data
         --- @class ri.cell_data
         local cell_data = {
-            network = network_data,
+            network_data = network_data,
             cell = cell,
             owner = owner,
             position = position, ---@type MapPosition
@@ -103,6 +105,7 @@ do -- Events
             end
         end
     end
+
     Event.register(defines.events.on_tick, on_tick)
 
 
@@ -116,6 +119,7 @@ do -- Events
             return interface and build_network_table(interface)
         end
     end
+
     Event.register(defines.events.on_sector_scanned, on_sector_scanned)
 
     -- Build the interface, after built check the area around it for interface components to revive or create.
@@ -125,7 +129,7 @@ do -- Events
             local pos, force = interface.position, interface.force
             local cc, ra = {}, {} -- Don't listen the masses.... a little gc churn later is two less type() calls now.
 
-            for _, entity in pairs(interface.surface.find_entities_filtered{position = pos, force = force}) do
+            for _, entity in pairs(interface.surface.find_entities_filtered { position = pos, force = force }) do
                 if entity ~= interface then
                     -- If we have ghosts either via blueprint or something killed them
                     if entity.name == 'entity-ghost' then
@@ -144,10 +148,10 @@ do -- Events
 
             -- If neither CC or RA are valid at this point then let us create them.
             if not cc.valid then
-                cc = interface.surface.create_entity{name = 'roboport-interface-cc', position = pos, force = force}
+                cc = interface.surface.create_entity { name = 'roboport-interface-cc', position = pos, force = force }
             end
             if not ra.valid then
-                ra = interface.surface.create_entity{name = 'roboport-interface-scanner', position = pos, force = force}
+                ra = interface.surface.create_entity { name = 'roboport-interface-scanner', position = pos, force = force }
             end
 
             interface.energy = 0 -- roboports start with a buffer of energy. Lets take that away!
@@ -157,13 +161,14 @@ do -- Events
             ra.destructible = false
         end
     end
+
     Event.register(Event.build_events, build_roboport_interface)
 
     -- Cleanup interface on death
     local function kill_or_remove_interface_parts(event, destroy)
         if event.entity.name == 'roboport-interface-main' then
             local interface = event.entity
-            local filter = {position = interface.position, force = interface.force}
+            local filter = { position = interface.position, force = interface.force }
             for _, entity in pairs(interface.surface.find_entities_filtered(filter)) do
                 if entity ~= interface and entity.name:find('^roboport%-interface') then
                     if destroy then return entity.destroy() end
@@ -172,6 +177,7 @@ do -- Events
             end
         end
     end
+
     Event.register(defines.events.on_entity_died, kill_or_remove_interface_parts)
     Event.register(Event.mined_events, function(event)
         kill_or_remove_interface_parts(event, true)
@@ -181,6 +187,7 @@ do -- Events
         global.running_interfaces = {} ---@type {[uint]: ri.cell_data}
         global.index = {} ---@type {[uint]: any}
     end
+
     Event.on_init(on_init)
 
 end

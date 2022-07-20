@@ -30,15 +30,17 @@
 --- end)
 --- ```
 --- From flib by Raiguard
---- @generic k, v
+--- @generic k, v, ret
 --- @param tbl table The table to iterate over.
---- @param from_key k The key to start iteration at, or `nil` to start at the beginning of `tbl`. If the key does not exist in `tbl`, it will be treated as `nil`, _unless_ a custom `_next` function is used.
+--- @param from_key k The key to start iteration at, or `nil` to start at the beginning of `tbl`.\
+---  - If the key does not exist in `tbl`, it will be treated as `nil`, _unless_ a custom `_next` function is used.
 --- @param n number The number of items to iterate.
---- @param callback fun(V: v, from_k: k, ...):result, boolean, boolean #Receives `value`, `key`, `...` as parameters.
---- @param _next? fun(tbl: table<k, v>, index:k|nil, ...):k, v #A custom `next()` function. If not provided, the default `next()` will be used. Reveives `tbl`, `key`, `...` as parameters.
+--- @param callback fun(V: v, from_k: k, ...):ret, boolean, boolean #Receives `value`, `key`, `...` as parameters.
+--- @param _next? fun(tbl: table<k, v>, index:k|nil, ...):k, v #A custom `next()` function.\
+---  - If not provided, the default `next()` will be used. Reveives `tbl`, `key`, `...` as parameters.
 --- @vararg ...? Additional parameters for callback/next if needed.
 --- @return any next_key Where the iteration ended. Can be any valid table key, or `nil`. Pass this as `from_k` in the next call to `for_n_of` for `tbl`.
---- @return table<k, result> results The results compiled from the first return of `callback`.
+--- @return table<k, ret> results The results compiled from the first return of `callback`.
 --- @return boolean reached_end Whether or not the end of the table was reached on this iteration.
 local function for_n_of(tbl, from_key, n, callback, _next, ...)
     -- Bypass if a custom `next` function was provided

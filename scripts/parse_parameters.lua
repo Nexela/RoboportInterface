@@ -2,7 +2,7 @@ local table = require('__stdlib__/stdlib/utils/table')
 local abs = math.abs
 
 --- @class ri.parameter_map
---- @field action function
+--- @field action string function to call
 --- @field count integer
 --- @field limit integer
 --- @field type? string
@@ -13,9 +13,9 @@ local abs = math.abs
 
 --- @type {[string]: ri.parameter_map}
 local parameter_map = {
-    ['interface-signal-item-on-ground'] = {action = 'deconstruct_entity', type = 'item-entity'},
-    ['interface-signal-chop-trees'] = {action = 'deconstruct_entity', type = 'tree', item_name = 'wood'},
-    ['interface-signal-catch-fish'] = {action = 'deconstruct_entity', type = 'fish', item_name = 'raw-fish'},
+    ['interface-signal-item-on-ground'] = { action = 'deconstruct_entity', type = 'item-entity' },
+    ['interface-signal-chop-trees'] = { action = 'deconstruct_entity', type = 'tree', item_name = 'wood' },
+    ['interface-signal-catch-fish'] = { action = 'deconstruct_entity', type = 'fish', item_name = 'raw-fish' },
     -- ['interface-signal-smarter-charging'] = {action = 'smarter_recharge'},
     -- ['interface-signal-upgrade-modules'] = {action = 'upgrade_modules'},
     -- ['interface-signal-deconstruct-finished-miners'] = {action = 'deconstruct_finished_miners', type = 'mining-drill'},
@@ -57,7 +57,8 @@ local function parse_parameters(parameters)
             local item_parameter = {
                 prototype = prototype,
                 count = parameter.count,
-                limit = abs(parameter.count)}
+                limit = abs(parameter.count)
+            }
 
             if prototype.type == 'ammo' then
                 item_parameter.action = 'refill_turrets'
@@ -69,6 +70,7 @@ local function parse_parameters(parameters)
             local tile_result = prototype.place_as_tile_result
             local tile = tile_result and tile_result.result
             if tile then
+                ---@cast tile_result -?
                 item_parameter.tile_prototype = tile
 
                 if tile_result.condition['ground-tile'] then

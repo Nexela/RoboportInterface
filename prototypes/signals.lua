@@ -1,7 +1,7 @@
-data:extend{ { type = 'item-subgroup', name = 'interface-signals', group = 'signals', order = 'zzzzzz1' } }
-data:extend{ { type = 'item-subgroup', name = 'interface-signals-settings', group = 'signals', order = 'zzzzzz2' } }
+data:extend { { type = 'item-subgroup', name = 'interface-signals', group = 'signals', order = 'zzzzzz1' } }
+data:extend { { type = 'item-subgroup', name = 'interface-signals-settings', group = 'signals', order = 'zzzzzz2' } }
 
-data:extend{
+data:extend {
     {
         type = 'virtual-signal',
         name = 'interface-signal-chop-trees',
@@ -27,7 +27,7 @@ data:extend{
     },
 }
 
-data:extend{
+data:extend {
     {
         type = 'virtual-signal',
         name = 'interface-signal-roboport-count',
