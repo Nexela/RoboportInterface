@@ -127,7 +127,7 @@ do -- Events
         local interface = event.created_entity or event.entity --- @type LuaEntity|nil
         if interface and interface.name == 'roboport-interface-main' then
             local pos, force = interface.position, interface.force
-            local cc, ra = {}, {} -- Don't listen the masses.... a little gc churn later is two less type() calls now.
+            local cc, ra
 
             for _, entity in pairs(interface.surface.find_entities_filtered { position = pos, force = force }) do
                 if entity ~= interface then
@@ -147,10 +147,10 @@ do -- Events
             end
 
             -- If neither CC or RA are valid at this point then let us create them.
-            if not cc.valid then
+            if not (cc and cc.valid) then
                 cc = interface.surface.create_entity { name = 'roboport-interface-cc', position = pos, force = force }
             end
-            if not ra.valid then
+            if not (ra and ra.valid) then
                 ra = interface.surface.create_entity { name = 'roboport-interface-scanner', position = pos, force = force }
             end
 

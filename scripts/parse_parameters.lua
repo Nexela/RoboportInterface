@@ -11,17 +11,15 @@ local abs = math.abs
 --- @field tile_prototype? LuaTilePrototype
 --- @field ammo_count? integer
 
---- @type {[string]: ri.parameter_map}
 local parameter_map = {
-    ['interface-signal-item-on-ground'] = { action = 'deconstruct_entity', type = 'item-entity' },
-    ['interface-signal-chop-trees'] = { action = 'deconstruct_entity', type = 'tree', item_name = 'wood' },
-    ['interface-signal-catch-fish'] = { action = 'deconstruct_entity', type = 'fish', item_name = 'raw-fish' },
+    ['interface-signal-item-on-ground'] = { action = 'deconstruct_entity', type = 'item-entity' }, ---@type ri.parameter_map
+    ['interface-signal-chop-trees'] = { action = 'deconstruct_entity', type = 'tree', item_name = 'wood' }, ---@type ri.parameter_map
+    ['interface-signal-catch-fish'] = { action = 'deconstruct_entity', type = 'fish', item_name = 'raw-fish' }, ---@type ri.parameter_map
     -- ['interface-signal-smarter-charging'] = {action = 'smarter_recharge'},
     -- ['interface-signal-upgrade-modules'] = {action = 'upgrade_modules'},
     -- ['interface-signal-deconstruct-finished-miners'] = {action = 'deconstruct_finished_miners', type = 'mining-drill'},
 }
 
---- @type {[string]: integer}
 local settings_map = {
     ['interface-signal-roboport-count'] = 1,
     ['interface-signal-enemy-range'] = 0,

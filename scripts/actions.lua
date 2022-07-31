@@ -64,10 +64,10 @@ Actions['refill_turrets'] = function(parameter, cell_data)
         local position = turret.position
         if cell_data.network_data.surface.find_entity('item-request-proxy', position) then return end
 
-        local inventory = turret.get_inventory(defines.inventory.turret_ammo)
+        local inventory = turret.get_inventory(defines.inventory.turret_ammo) --[[@as LuaInventory]]
         local insertable = inventory.get_insertable_count(ammo_name)
         if insertable <= 0 then goto continue end
-        local count = math.min(parameter.count - inventory.get_item_count(ammo_name), insertable) --[[@as uint]]
+        local count = math.min(parameter.count - inventory.get_item_count(ammo_name), insertable)
         if count <= 0 or count > parameter.count then goto continue end
 
         if cell_data.network_data.surface.create_entity {
